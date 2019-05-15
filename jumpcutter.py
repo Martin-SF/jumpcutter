@@ -40,26 +40,32 @@ def inputToOutputFilename(filename):
 def createPath(s):
     #assert (not os.path.exists(s)), "The filepath "+s+" already exists. Don't want to overwrite it. Aborting."
 
-    try:  
+    try:
         os.mkdir(s)
-    except OSError:  
+    except OSError:
         assert False, "Creation of the directory %s failed. (The TEMP folder may already exist. Delete or rename it, and try again.)"
 
 def deletePath(s): # Dangerous! Watch out!
-    try:  
+    try:
         rmtree(s,ignore_errors=False)
-    except OSError:  
+    except OSError:
         print ("Deletion of the directory %s failed" % s)
         print(OSError)
 
 parser = argparse.ArgumentParser(description='Modifies a video file to play at different speeds when there is sound vs. silence.')
+
+#input/output
 parser.add_argument('--input_file', type=str,  help='the video file you want modified')
 parser.add_argument('--url', type=str, help='A youtube url to download and process')
 parser.add_argument('--output_file', type=str, default="", help="the output file. (optional. if not included, it'll just modify the input file name)")
+
+#cut settings
 parser.add_argument('--silent_threshold', type=float, default=0.03, help="the volume amount that frames' audio needs to surpass to be consider \"sounded\". It ranges from 0 (silence) to 1 (max volume)")
-parser.add_argument('--sounded_speed', type=float, default=1.00, help="the speed that sounded (spoken) frames should be played at. Typically 1.")
-parser.add_argument('--silent_speed', type=float, default=5.00, help="the speed that silent frames should be played at. 999999 for jumpcutting.")
 parser.add_argument('--frame_margin', type=float, default=1, help="some silent frames adjacent to sounded frames are included to provide context. How many frames on either the side of speech should be included? That's this variable.")
+parser.add_argument('--sounded_speed', type=float, default=1.00, help="the speed that sounded (spoken) frames should be played at. Typically 1.")
+parser.add_argument('--silent_speed', type=float, default=1e6, help="the speed that silent frames should be played at. 999999 for jumpcutting.")
+
+#file details
 parser.add_argument('--sample_rate', type=float, default=44100, help="sample rate of the input and output videos")
 parser.add_argument('--frame_rate', type=float, default=30, help="frame rate of the input and output videos. optional... I try to find it out myself, but it doesn't always work.")
 parser.add_argument('--frame_quality', type=int, default=3, help="quality of frames to be extracted from input video. 1 is highest, 31 is lowest, 3 is the default.")
@@ -81,7 +87,7 @@ URL = args.url
 FRAME_QUALITY = args.frame_quality
 
 assert INPUT_FILE != None , "why u put no input file, that dum"
-    
+
 if len(args.output_file) >= 1:
     OUTPUT_FILE = args.output_file
 else:
@@ -89,7 +95,7 @@ else:
 
 TEMP_FOLDER = "TEMP"
 AUDIO_FADE_ENVELOPE_SIZE = 400 # smooth out transitiion's audio by quickly fading in/out (arbitrary magic number whatever)
-    
+
 createPath(TEMP_FOLDER)
 
 command = "ffmpeg -i "+INPUT_FILE+" -qscale:v "+str(FRAME_QUALITY)+" "+TEMP_FOLDER+"/frame%06d.jpg -hide_banner"
@@ -152,7 +158,7 @@ outputPointer = 0
 lastExistingFrame = None
 for chunk in chunks:
     audioChunk = audioData[int(chunk[0]*samplesPerFrame):int(chunk[1]*samplesPerFrame)]
-    
+
     sFile = TEMP_FOLDER+"/tempStart.wav"
     eFile = TEMP_FOLDER+"/tempEnd.wav"
     wavfile.write(sFile,SAMPLE_RATE,audioChunk)
@@ -168,7 +174,7 @@ for chunk in chunks:
     #outputAudioData[outputPointer:endPointer] = alteredAudioData/maxAudioVolume
 
     # smooth out transitiion's audio by quickly fading in/out
-    
+
     if leng < AUDIO_FADE_ENVELOPE_SIZE:
         outputAudioData[outputPointer:endPointer] = 0 # audio is less than 0.01 sec, let's just remove it.
     else:
@@ -201,4 +207,3 @@ command = "ffmpeg -framerate "+str(frameRate)+" -i "+TEMP_FOLDER+"/newFrame%06d.
 subprocess.call(command, shell=True)
 
 deletePath(TEMP_FOLDER)
-
